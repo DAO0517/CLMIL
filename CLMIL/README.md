@@ -16,12 +16,16 @@ Our framework CLMIL consists of two stages: a cross-detection MIL aggregator (CD
   <img src="figures/fig1.png">
 </div>
 
-### Training the CDMIL
+### Step 1: Train CDMIL (First Stage)
+Navigate to the CDMIL directory and run the following command to train the CDMIL model:
 ```
    cd ../CLMIL/CDMIL
    python train.py
 ```
-### Training the PSCL
+### Step 2: Extract Anchor Samples and Pseudo-Labels from IPAM
+Once the CDMIL model is trained, you can extract anchor samples and pseudo-labels from the IPAM. These will be used as training data for the PSCL stage.
+
+Run the following script to extract the data:
 
 ## Contact
 If you have any question, please feel free to contact us. 
