@@ -6,8 +6,15 @@ This repository contains the implementation of CLMIL, a two-stage framework for 
 2. PSCL (Contrastive Learning Model based on Pseudo-Labels): A contrastive learning model to optimize the feature encoder using pseudo-labels.
 The model is trained on a single RTX 3080 GPU.
 ## Requirements
- ### Installation
-Please install pytorch version >=1.2
+To run the code, you need the following dependencies:
+- Python 3.7+
+- PyTorch 1.8+
+- torchvision
+- numpy
+- scikit-learn
+- spams
+
+(Add any other dependencies your project requires)
  ### Dataset Preparation
 The datasets used in this study are accessible through The Cancer Genome Atlas (TCGA) at [https://portal.gdc.cancer.gov/] and the CAMELYON16 challenge at [https://camelyon16.grand-challenge.org/]. The dataset of Meningiomas is available from the corresponding authors upon reasonable request.
  ## Model training and testing
