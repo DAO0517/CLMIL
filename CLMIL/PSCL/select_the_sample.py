@@ -73,9 +73,8 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
 
-def train(train_df, milnet, criterion_CE, num_classes, args):
+def anchor_sample(train_df, milnet, args):
     milnet.eval()
-    total_loss = 0
     with torch.no_grad():
         for i, data in enumerate(train_df):
 
@@ -156,7 +155,6 @@ def main(args):
         milnet = mil.MILNet(i_classifier, args.num_classes, args.margin, args.p1, args.p2, CAMEYLON).cuda()
         milnet.load_state_dict(torch.load(r'..\weeksup\mdg_mil_smu_622_weeksup_3gn_0.5iq0.5gq_with_constrast_p10.2_p20.05_round2_s123\s_2_checkpoint.pt'))
 
-        criterion_BCELL = nn.BCEWithLogitsLoss()
         criterion_CE = nn.CrossEntropyLoss()
 
         # modify save path
@@ -181,16 +179,11 @@ def main(args):
 
         print('Done!')
 
-        combined_data = train(train_dataloader, milnet, criterion_CE, num_classes, args)
+        combined_data = anchor_sample(train_dataloader, milnet, args)
         # 指定保存整合后数据的文件路径
         output_file = r'..\select_patch\select_patch_smu_weak_round_p10.05,p20.01.csv'
-
-
-
         # 将整合后的数据保存到CSV文件中
         combined_data.to_csv(output_file, index=False)
-
-
 
         print('\n')
 
