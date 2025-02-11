@@ -10,6 +10,7 @@ To run the code, you need the following dependencies:
 - Python 3.7+
 - PyTorch 1.8+
 - torchvision
+- torch_geometric
 - numpy
 - scikit-learn
 - spams
