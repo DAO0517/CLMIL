@@ -2,7 +2,7 @@ import argparse, os, copy, glob, datetime, sys
 from datasets_clam.dataset_generic import Generic_WSI_Classification_Dataset, Generic_MIL_Dataset
 from datasets_clam.dataset_generic import save_splits
 import random
-import mdmil_lky as mil
+import model_mdmil as mil
 from utils.mdmil_utils import Logger
 from sklearn.metrics import roc_curve, roc_auc_score,precision_recall_fscore_support,auc
 from hm2 import HybridMemory
@@ -84,7 +84,7 @@ def train(train_df, milnet, criterion_BCELL, criterion_CE,  optimizer, num_class
         contrastive_loss = memory(output_feats[:, int(label_ori), :], label_ori.cuda(), epoch)
 
         # for instance loss and bag loss
-        max_prediction, _ = torch.max(ins_prediction, 0)  # 按列，返回维度为（5，）返回的是每个类别的最大概率，索引对应的是样本索引。
+        max_prediction, _ = torch.max(ins_prediction, 0)  
         # bag_label = bag_label.long().squeeze()
         # criterion_CE(max_prediction[None,], bag_label)让对应类的预测值最高
         bag_loss =  criterion_CE(max_prediction[None,], bag_label) + criterion_CE(bag_prediction_fc, bag_label)
@@ -129,7 +129,7 @@ def test(test_df, milnet, criterion_BCELL, criterion_CE, optimizer, num_classes,
 
             test_labels.extend([label])
             test_prediction = F.softmax(bag_prediction_fc, dim=1).cpu()
-            # test_predictions.extend([torch.sigmoid(bag_prediction).cpu()])
+         
             temp = torch.argmax(test_prediction).cpu()
 
             dic_num[int(label_ori)] += 1
@@ -310,7 +310,7 @@ def main(args):
 
         if args.early_stopping:
             milnet.load_state_dict(torch.load(os.path.join(args.results_dir, "s_{}_checkpoint.pt".format(i))))
-            # milnet.load_state_dict(torch.load(os.path.join(save_path, 'best_model_val_s{}.pth'.format(i))))
+            milnet.load_state_dict(torch.load(os.path.join(save_path, 'best_model_val_s{}.pth'.format(i))))
         else:
             torch.load(milnet.state_dict(), os.path.join(args.results_dir, "s_{}_checkpoint.pt".format(i)))
 
@@ -325,48 +325,38 @@ if __name__ == '__main__':
     # must check before training
     parser.add_argument('--lr', default=0.0001, type=float, help='Initial learning rate [0.0002]')
     parser.add_argument('--num_epochs', default=200, type=int, help='Number of total training epochs [40|200]')
-
-    parser.add_argument('--split_train', default=0.65, type=float, help='Training/Validation split [0.5]')
-    parser.add_argument('--split_val', default=0.15, type=float, help='Training/Validation split [0.5]')
     parser.add_argument('--eva_epoch', default=1, type=int)
-    ###################################
+    parser.add_argument('--batch_size', default=1, type=int)
+    parser.add_argument('--scheduler', default='cos', type=str, help='type of schedular')
+    parser.add_argument('--temp', default=0.05, type=float)
+    parser.add_argument('--momentum', default=0.2, type=float, help='0.2')
+    parser.add_argument('--margin', default=-0.1, type=float, ) 
+    parser.add_argument('--p1', default=0.20, type=float, help='for cam, 0.01')
+    parser.add_argument('--p2', default=0.05, type=float, help='for cam 0.05')
     parser.add_argument('--drop_p', default=0.01, type=float, help='drop portion during training')
     parser.add_argument('--drop_probability', default=0.6, type=float, help='drop portion during training')
-    parser.add_argument('--scheduler', default='cos', type=str, help='type of schedular')
-    ###################################
-    parser.add_argument('--feats_size', default=1024, type=int, help='Dimension of the feature size [512]')
-    parser.add_argument('--results_dir', default='./results', help='results directory (default: ./results)')
-    parser.add_argument('--split_dir', type=str,
-                        default='./splits/512_2021_tcga_glioma_6_2_2_k=5_task_2_tumor_subtyping_100',
-                        help='manually specify指定 the set of splits to use, '
-                             + 'instead of infering from the task and label_frac argument (default: None)')
-    parser.add_argument('--task', type=str, choices=['task_1_tumor_vs_normal', 'task_2_tumor_subtyping'],
-                        default='task_2_tumor_subtyping')
-    parser.add_argument('--k', type=int, default=5, help='number of folds (default: 10)')
-    parser.add_argument('--k_start', type=int, default=-1, help='start fold (default: -1, last fold)')
-    parser.add_argument('--k_end', type=int, default=-1, help='end fold (default: -1, first fold)')
-    parser.add_argument('--batch_size', default=1, type=int)
-    parser.add_argument('--seed', type=int, default=2,
-                        help='random seed for reproducible experiment (default: 1)')
     parser.add_argument('--num_workers', default=4, type=int)
     parser.add_argument('--gpu_index', type=int, nargs='+', default=(0,), help='GPU ID(s) [0]')
     parser.add_argument('--weight_decay', default=5e-3, type=float, help='Weight decay [5e-3]')
-    parser.add_argument('--early_stopping', action='store_true', default=True, help='enable early stopping')
+    parser.add_argument('--weighted_sample', action='store_true', default=True, help='enable weighted sampling')
+    ###################################
+    parser.add_argument('--feats_size', default=1024, type=int, help='Dimension of the feature size [512]')
+    parser.add_argument('--k', type=int, default=5, help='number of folds (default: 10)')
+    parser.add_argument('--k_start', type=int, default=-1, help='start fold (default: -1, last fold)')
+    parser.add_argument('--k_end', type=int, default=-1, help='end fold (default: -1, first fold)')
+    parser.add_argument('--seed', type=int, default=2,help='random seed for reproducible experiment (default: 1)')
+    parser.add_argument('--results_dir', default='CDMIL/results', help='results directory (default: ./results)')
+    parser.add_argument('--split_dir', type=str,
+                        default=R'CDMIL/splits/512_2021_tcga_glioma_6_2_2_k=5_task_2_tumor_subtyping_100',
+                        help='manually specify the set of splits to use, '
+                             + 'instead of infering from the task and label_frac argument (default: None)')
+    parser.add_argument('--task', type=str, choices=['Meningioma', 'TCGA_GLIOMA'],
+                        default='TCGA_GLIOMA', help='select dataset task')
     parser.add_argument('--exp_code', type=str, default='test_mdg_mil_tcga_moco_622_with_3gn_0.5iq+0.5gq_with_0.6constrast_loss_p10.20_p20.05',
                         help='experiment code for saving results')
     parser.add_argument('--testing', action='store_true', default=False, help='debugging tool')
-    parser.add_argument('--weighted_sample', action='store_true', default=True, help='enable weighted sampling')
-    ####################################
-    parser.add_argument('--temp', default=0.05, type=float)
-    parser.add_argument('--momentum', default=0.2, type=float, help='0.2')
-
-    parser.add_argument('--margin', default=-0.1, type=float, )  # 0.2 for Cam
-    parser.add_argument('--p1', default=0.20, type=float, help='for cam, 0.01')
-    parser.add_argument('--p2', default=0.05, type=float, help='for cam 0.05')
-    ####################################
-
     parser.add_argument('--save_dir', default='logs', type=str)
-    parser.add_argument('--data_dir', type=str, default=r'G:\512_MOCO_norm_2021TCGA_patch_feature',
+    parser.add_argument('--data_dir', type=str, default=r"I:\512_2021_WEEKSUP_TCGA_patch_feature",
                         help='data directory')
     args = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -398,20 +388,22 @@ if __name__ == '__main__':
 
 
     # generate dataset and dataloader
-    if args.task == 'task_1_tumor_vs_normal':
-        args.n_classes = 2
-        dataset = Generic_MIL_Dataset(csv_path='dataset_csv/camelyon16_tumor_vs_normal_dummy_clean.csv',
+    # generate dataset and dataloader
+    if args.task == 'Meningioma':
+        args.n_classes = 5
+        dataset = Generic_MIL_Dataset(csv_path=r'CDMIL\dataset_csv\512_all_meningioma_tumor_subtyping_dummy_clean.csv',
                                       data_dir=args.data_dir,
                                       shuffle=False,
                                       seed=args.seed,
                                       print_info=False,
-                                      label_dict={'normal_tissue': 0, 'tumor_tissue': 1},
+                                      label_dict={'pixibaoxing': 0, 'hunhexing': 1, 'xianweixing': 2, 'shalitixing': 3,
+                                                  'feidianxing': 4},
                                       patient_strat=False,
                                       ignore=[])
 
-    elif args.task == 'task_2_tumor_subtyping':
+    elif args.task == 'TCGA_GLIOMA':
         args.n_classes = 3
-        dataset = Generic_MIL_Dataset(csv_path='dataset_csv/512_2021_TCGA_GLIOMA_tumor_subtyping_dummy_clean.csv',
+        dataset = Generic_MIL_Dataset(csv_path=r'CDMIL\dataset_csv\512_2021_TCGA_GLIOMA_tumor_subtyping_dummy_clean.csv',
                                       data_dir=args.data_dir,
                                       shuffle=False,
                                       seed=args.seed,
@@ -420,14 +412,13 @@ if __name__ == '__main__':
                                       patient_strat=False,
                                       ignore=[])
 
+
     num_classes = args.n_classes
 
     if not os.path.isdir(args.results_dir):
-        os.mkdir(args.results_dir)
-
+        os.makedirs(args.results_dir)
     args.results_dir = os.path.join(args.results_dir, str(args.exp_code) + '_s{}'.format(args.seed))
     if not os.path.isdir(args.results_dir):
-        os.mkdir(args.results_dir)
-    if not os.path.isdir(args.results_dir):
-        os.mkdir(args.results_dir)
+        os.makedirs(args.results_dir)
     main(args)
+
